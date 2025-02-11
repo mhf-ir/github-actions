@@ -2,7 +2,7 @@ name: Enforce Issue Labels
 
 on:
   issues:
-    types: [opened, edited]
+    types: [opened, edited, labeled, unlabeled, closed, reopened, assigned, unassigned, milestoned, demilestoned, locked, unlocked, transferred, pinned, unpinned]
 
 jobs:
   enforce-labels:
