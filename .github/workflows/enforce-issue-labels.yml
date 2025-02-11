@@ -2,7 +2,7 @@ name: Enforce Issue Labels
 
 on:
   issues:
-    types: [opened, edited, labeled, unlabeled, closed, reopened, assigned, unassigned, milestoned, demilestoned, locked, unlocked, transferred, pinned, unpinned]
+    types: [opened, edited, closed, labeled, unlabeled]
 
 jobs:
   enforce-labels:
@@ -13,16 +13,18 @@ jobs:
         env:
           LABELS: ${{ toJson(github.event.issue.labels) }}
         run: |
-         #
           # Define valid label patterns
           VALID_LABELS=("feat" "bug" "doc" "duplicate" "enhancement" "good-first-issue" "help-wanted" "invalid" "question" "wontfix")
           PROJECT_PATTERN="^project-[a-z0-9\-]{1,32}$"
           CUSTOMER_PATTERN="^customer-[a-z0-9\-]{1,32}$"
           VENDOR_PATTERN="^vendor-[a-z0-9\-]{1,32}$"
 
+          # Extract label names using jq
+          labels=$(echo "$LABELS" | jq -r '.[].name')
+
           # Check if any label matches the valid patterns
           has_valid_label=false
-          for label in ${{ toJson(github.event.issue.labels[*].name) }}; do
+          for label in $labels; do
             if [[ " ${VALID_LABELS[@]} " =~ " ${label} " ]]; then
               has_valid_label=true
               break
