@@ -35,10 +35,6 @@ jobs:
           # Fail if no valid label is found
           if [[ "$has_valid_label" == false ]]; then
             echo "::error::No valid label found on the issue. Please add a label matching one of the following patterns:"
-            echo "::error::- 'feat', 'bug' or 'custom'"
-            echo "::error::- 'p-<project_id>' (e.g., p-auth-service)"
-            echo "::error::- 'c-<customer_id>' (e.g., c-user-123)"
-            echo "::error::- 'v-<vendor_id>' (e.g., v-google-cloud)"
             exit 1
           else
             echo "Valid label found."
