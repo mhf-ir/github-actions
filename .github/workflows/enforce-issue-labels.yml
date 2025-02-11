@@ -1,0 +1,45 @@
+name: Enforce Issue Labels
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  enforce-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if issue has a valid label
+        id: check-labels
+        env:
+          LABELS: ${{ toJson(github.event.issue.labels) }}
+        run: |
+         #
+          # Define valid label patterns
+          VALID_LABELS=("feat" "bug" "doc" "duplicate" "enhancement" "good-first-issue" "help-wanted" "invalid" "question" "wontfix")
+          PROJECT_PATTERN="^project-[a-z0-9\-]{1,32}$"
+          CUSTOMER_PATTERN="^customer-[a-z0-9\-]{1,32}$"
+          VENDOR_PATTERN="^vendor-[a-z0-9\-]{1,32}$"
+
+          # Check if any label matches the valid patterns
+          has_valid_label=false
+          for label in ${{ toJson(github.event.issue.labels[*].name) }}; do
+            if [[ " ${VALID_LABELS[@]} " =~ " ${label} " ]]; then
+              has_valid_label=true
+              break
+            elif [[ "$label" =~ $PROJECT_PATTERN || "$label" =~ $CUSTOMER_PATTERN || "$label" =~ $VENDOR_PATTERN ]]; then
+              has_valid_label=true
+              break
+            fi
+          done
+
+          # Fail if no valid label is found
+          if [[ "$has_valid_label" == false ]]; then
+            echo "::error::No valid label found on the issue. Please add a label matching one of the following patterns:"
+            echo "::error::- 'feat', 'bug' or 'custom'"
+            echo "::error::- 'p-<project_id>' (e.g., p-auth-service)"
+            echo "::error::- 'c-<customer_id>' (e.g., c-user-123)"
+            echo "::error::- 'v-<vendor_id>' (e.g., v-google-cloud)"
+            exit 1
+          else
+            echo "Valid label found."
+          fi
