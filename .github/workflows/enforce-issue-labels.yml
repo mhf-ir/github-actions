@@ -1,4 +1,4 @@
-name: Enforce Issue Labels
+name: "issues: labels"
 
 on:
   issues:
