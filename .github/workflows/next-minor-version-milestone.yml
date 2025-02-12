@@ -1,0 +1,84 @@
+name: "next minor version milestone"
+
+on:
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  create-milestone:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Latest Semantic Milestone and Calculate New Version
+        id: calc_milestone
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Set repository details
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+
+          echo "Fetching existing milestones for ${REPO_OWNER}/${REPO_NAME}..."
+          # Fetch all milestones (open and closed)
+          milestones=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/milestones?state=all")
+
+          # Extract milestone titles that follow the semantic versioning pattern (e.g. "1.0", "2.3")
+          semantic_milestones=$(echo "$milestones" | jq -r '.[] | .title' | grep -E '^[0-9]+\.[0-9]+$' | sort -V)
+
+          if [ -z "$semantic_milestones" ]; then
+            echo "No semantic milestone found. Starting with version 1.0."
+            NEW_MILESTONE="1.0"
+          else
+            # Get the highest semantic version milestone (last line after sort)
+            LATEST_VERSION=$(echo "$semantic_milestones" | tail -n 1)
+            echo "Latest semantic milestone: $LATEST_VERSION"
+
+            # Split the version into major and minor parts
+            IFS='.' read -r major minor <<< "$LATEST_VERSION"
+            # Increment the minor version
+            minor=$((minor + 1))
+            NEW_MILESTONE="${major}.${minor}"
+          fi
+
+          echo "New milestone version will be: $NEW_MILESTONE"
+
+          # Calculate due_on date as 2 months from now (in ISO 8601 format)
+          DUE_DATE=$(date -d "+2 months" --utc +%Y-%m-%dT%H:%M:%SZ)
+          echo "Milestone due date set to: $DUE_DATE"
+
+          # Export values for the next step (using GitHub Actions' set-output)
+          echo "::set-output name=new_milestone::$NEW_MILESTONE"
+          echo "::set-output name=due_date::$DUE_DATE"
+
+      - name: Create New Milestone
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_MILESTONE: ${{ steps.calc_milestone.outputs.new_milestone }}
+          DUE_DATE: ${{ steps.calc_milestone.outputs.due_date }}
+        run: |
+          REPO_OWNER="${{ github.repository_owner }}"
+          REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          
+          echo "Creating milestone '$NEW_MILESTONE' for ${REPO_OWNER}/${REPO_NAME}..."
+
+          # Prepare the JSON payload using jq
+          payload=$(jq -n \
+            --arg title "$NEW_MILESTONE" \
+            --arg due_on "$DUE_DATE" \
+            '{
+              title: $title,
+              state: "open",
+              due_on: $due_on,
+              description: ("Milestone " + $title + " due on " + $due_on)
+            }'
+          )
+
+          # Send the POST request to create the milestone
+          response=$(curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/milestones" \
+            -d "$payload")
+
+          echo "Milestone creation response:"
+          echo "$response"
