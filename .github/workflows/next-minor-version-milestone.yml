@@ -6,6 +6,7 @@ on:
 jobs:
   create-milestone:
     runs-on: ubuntu-latest
+    permissions: write-all
     steps:
       - name: Get Latest Semantic Milestone and Calculate New Version
         id: calc_milestone
