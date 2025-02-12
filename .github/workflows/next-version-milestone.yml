@@ -1,22 +1,36 @@
-name: "next minor version milestone"
+name: "next version milestone"
 
 on:
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Type of version bump: "minor" or "major"'
+        required: true
+        default: "minor"
 
 jobs:
   create-milestone:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
+      - name: Ensure Running on Main Branch
+        run: |
+          # Ensure this workflow runs on the main branch.
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Error: This workflow must run on the main branch. Current ref: ${GITHUB_REF}"
+            exit 1
+          fi
+
       - name: Get Latest Semantic Milestone and Calculate New Version
         id: calc_milestone
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUMP_TYPE: ${{ github.event.inputs.bump_type }}
         run: |
           # Set repository details
           REPO_OWNER="${{ github.repository_owner }}"
           REPO_NAME=$(echo "${{ github.repository }}" | cut -d'/' -f2)
-
+          
           echo "Fetching existing milestones for ${REPO_OWNER}/${REPO_NAME}..."
           # Fetch all milestones (open and closed)
           milestones=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
@@ -33,21 +47,28 @@ jobs:
             # Get the highest semantic version milestone (last line after sort)
             LATEST_VERSION=$(echo "$semantic_milestones" | tail -n 1)
             echo "Latest semantic milestone: $LATEST_VERSION"
-
             # Split the version into major and minor parts
             IFS='.' read -r major minor <<< "$LATEST_VERSION"
-            # Increment the minor version
-            minor=$((minor + 1))
+
+            # Increment based on input: minor bump or major bump
+            if [ "$BUMP_TYPE" = "major" ]; then
+              major=$((major + 1))
+              minor=0
+            else
+              # Default to minor bump
+              minor=$((minor + 1))
+            fi
+
             NEW_MILESTONE="${major}.${minor}"
           fi
 
           echo "New milestone version will be: $NEW_MILESTONE"
 
-          # Calculate due_on date as 2 months from now (in ISO 8601 format)
-          DUE_DATE=$(date -d "+2 months" --utc +%Y-%m-%dT%H:%M:%SZ)
+          # Calculate due_on date as 2 months from now (ISO 8601 format)
+          DUE_DATE=$(date -d "+2 months" --utc +%Y-%m-%dT00:00:00Z)
           echo "Milestone due date set to: $DUE_DATE"
 
-          # Export values for the next step (using GitHub Actions' set-output)
+          # Export values for the next step
           echo "::set-output name=new_milestone::$NEW_MILESTONE"
           echo "::set-output name=due_date::$DUE_DATE"
 
@@ -62,7 +83,7 @@ jobs:
           
           echo "Creating milestone '$NEW_MILESTONE' for ${REPO_OWNER}/${REPO_NAME}..."
 
-          # Prepare the JSON payload using jq
+          # Build JSON payload using jq
           payload=$(jq -n \
             --arg title "$NEW_MILESTONE" \
             --arg due_on "$DUE_DATE" \
