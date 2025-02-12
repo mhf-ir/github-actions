@@ -1,6 +1,8 @@
 name: 🐛 Bug
 description: Bug report
 title: '[Bug]: '
+labels:
+  - bug
 body:
   - type: markdown
     attributes:
@@ -40,15 +42,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting this issue!
         ---
+        ### Developer section
         Developer section also available for any additional notes.
   - type: textarea
     id: dev-notes
     attributes:
       label: Developer Notes
-      value: |
-        Leave any changes after the issue is resolved
+      description: Any additional notes from developers. this might be consider as realease notes.
     validations:
       required: false
   - type: dropdown
