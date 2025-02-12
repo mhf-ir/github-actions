@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check if issue has a valid label
-        id: check-labels
+        id: check-issues-labels
         env:
           LABELS: ${{ toJson(github.event.issue.labels) }}
         run: |
